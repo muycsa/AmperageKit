@@ -23,13 +23,26 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore AmperageKit.sln
 
-    # PATCH STEP: Installs the exact targeting pack to bypass the hardcoded SDK path
-    - name: Install Windows Contracts MetaData Pack
-      run: nuget install Microsoft.Windows.SDK.Contracts -Version 10.0.22621.755 -OutputDirectory Packages
+    # POPRAWKA: Automatyczne znalezienie poprawnego pliku Windows.winmd na serwerze i aktualizacja ścieżki w projekcie
+    - name: Fix Hardcoded SDK Windows.winmd Path
+      shell: powershell
+      run: |
+        $actualWinmd = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\UnionMetadata" -Filter "Windows.winmd" -Recurse | Select-Object -First 1).FullName
+        if ($actualWinmd) {
+            Write-Host "Znaleziono poprawny plik SDK: $actualWinmd" -ForegroundColor Green
+            $csprojPath = "Amperage\Amperage.csproj"
+            $content = Get-Content $csprojPath
+            # Podmiana starej sztywnej ścieżki autora na dynamiczną ścieżkę z serwera GitHub
+            $content = $content -replace '<HintPath>.*\\UnionMetadata\\.*\\Windows\.winmd<\/HintPath>', "<HintPath>$actualWinmd</HintPath>"
+            Set-Content -Path $csprojPath -Value $content
+        } else {
+            Write-Error "Nie znaleziono pliku Windows.winmd w środowisku GitHub Actions!"
+            exit 1
+        }
 
     - name: Build Solution for x64
       run: |
-        msbuild AmperageKit.sln /p:Configuration=Release /p:Platform=x64 /t:Rebuild /p:ReferencePath="${{ github.workspace }}\Packages\Microsoft.Windows.SDK.Contracts.10.0.22621.755\ref\netstandard2.0"
+        msbuild AmperageKit.sln /p:Configuration=Release /p:Platform=x64 /t:Rebuild
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
