@@ -1,4 +1,4 @@
-name: Build AmperageKite
+name: Build AmperageKit
 
 on:
   push:
@@ -11,7 +11,6 @@ jobs:
   build:
     runs-on: windows-latest
 
-    # Usunęliśmy matrix, serwer buduje teraz tylko jedną, właściwą wersję x64
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -23,10 +22,14 @@ jobs:
 
     - name: Restore NuGet packages
       run: nuget restore AmperageKit.sln
-      
+
+    # PATCH STEP: Installs the exact targeting pack to bypass the hardcoded SDK path
+    - name: Install Windows Contracts MetaData Pack
+      run: nuget install Microsoft.Windows.SDK.Contracts -Version 10.0.22621.755 -OutputDirectory Packages
+
     - name: Build Solution for x64
       run: |
-        msbuild AmperageKit.sln /p:Configuration=Release /p:Platform=x64 /t:Rebuild
+        msbuild AmperageKit.sln /p:Configuration=Release /p:Platform=x64 /t:Rebuild /p:ReferencePath="${{ github.workspace }}\Packages\Microsoft.Windows.SDK.Contracts.10.0.22621.755\ref\netstandard2.0"
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
