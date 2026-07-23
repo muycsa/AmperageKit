@@ -5,22 +5,18 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: # Pozwala na ręczne uruchomienie kompilacji w zakładce Actions
+  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: windows-latest
 
-    strategy:
-      matrix:
-        architecture: [x64, ARM64]
-        configuration: [Release]
-
+    # Usunęliśmy matrix, serwer buduje teraz tylko jedną, właściwą wersję x64
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # Kluczowe, jeśli projekt używa zewnętrznych bibliotek jak Detours
+        submodules: recursive
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
@@ -28,15 +24,15 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore AmperageKit.sln
       
-    - name: Build Solution
+    - name: Build Solution for x64
       run: |
-        msbuild AmperageKit.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.architecture }} /t:Rebuild
+        msbuild AmperageKit.sln /p:Configuration=Release /p:Platform=x64 /t:Rebuild
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: AmperageKit-${{ matrix.architecture }}
+        name: AmperageKit-x64
         path: |
-          **/bin/${{ matrix.architecture }}/${{ matrix.configuration }}/*.exe
-          **/bin/${{ matrix.architecture }}/${{ matrix.configuration }}/*.dll
+          **/bin/x64/Release/*.exe
+          **/bin/x64/Release/*.dll
         if-no-files-found: error
